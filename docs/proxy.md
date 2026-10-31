@@ -1,0 +1,359 @@
+---
+layout: default
+title: پروکسی
+permalink: /docs/proxy/
+---
+
+
+
+# 🔒 راهنمای پروکسی
+
+تنظیم HTTP، HTTPS و SOCKS5 با امکان تغییر در زمان اجرا و استثنا کردن عملیات‌ها.
+
+---
+
+## 📋 فهرست مطالب
+
+- [پروکسی چیست؟](#-پروکسی-چیست)
+- [روش‌های تنظیم](#-روشهای-تنظیم-پروکسی)
+- [فعال و غیرفعال کردن](#-فعال-و-غیرفعال-کردن)
+- [تغییر در زمان اجرا](#-تغییر-پروکسی-در-زمان-اجرا)
+- [استثنا کردن عملیات‌ها](#-استثنا-کردن-عملیاتها)
+- [فرمت آدرس](#-فرمت-آدرس-پروکسی)
+- [جدول متدها](#-جدول-متدها)
+- [سوالات متداول](#-سوالات-متداول)
+
+---
+
+## 🤔 پروکسی چیست؟
+
+> پروکسی مثل یک **واسطه** بین شما و اینترنت است. وقتی فعال باشه، درخواست‌ها ابتدا به سرور پروکسی می‌رن و از اونجا به روبیکا ارسال می‌شن.
+>
+> **چرا استفاده کنیم؟**
+> - دور زدن محدودیت‌های شبکه
+> - افزایش امنیت و حریم خصوصی
+> - تغییر IP برای جلوگیری از بلاک شدن
+
+---
+
+## 🔧 روش‌های تنظیم پروکسی
+
+### روش ۱ — هنگام ساخت کلاینت (پیشنهادی ✅)
+
+```go
+client, err := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("http://user:pass@host:port"),
+    rubingo.WithProxyEnabled(true),
+)
+```
+
+> ⚠️ **نکته مهم:** اگر فقط `WithProxy` بنویسی ولی `WithProxyEnabled(true)` ننویسی، پروکسی غیرفعال خواهد بود!
+
+---
+
+### روش ۲ — فعال کردن بعداً
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("http://user:pass@host:port"),
+)
+client.Connect()
+
+// ... کدهای دیگر ...
+
+client.EnableProxy() // حالا فعال شد
+```
+
+---
+
+### روش ۳ — تنظیم بعد از ساخت کلاینت
+
+```go
+client, _ := rubingo.NewClient("my_bot")
+client.Connect()
+
+client.SetProxy("http://user:pass@host:port")
+client.EnableProxy()
+```
+
+---
+
+## ⚡ فعال و غیرفعال کردن
+
+```go
+client.EnableProxy()   // روشن 🟢
+client.DisableProxy()  // خاموش 🔴
+
+if client.IsProxyEnabled() {
+    fmt.Println("پروکسی فعال است ✅")
+}
+```
+
+---
+
+## 🔄 تغییر پروکسی در زمان اجرا
+
+```go
+client.SetProxy("http://user1:pass1@proxy1.com:8080")
+client.EnableProxy()
+
+// تغییر به پروکسی دوم (بدون EnableProxy دوباره)
+client.SetProxy("http://user2:pass2@proxy2.com:9090")
+
+// غیرفعال کردن
+client.DisableProxy()
+```
+
+> 💡 **نکته:** تغییر پروکسی thread-safe است. حتی اگر همان لحظه درخواست‌هایی در حال ارسال باشند، مشکلی پیش نمی‌آید.
+
+---
+
+## 🚫 استثنا کردن عملیات‌ها
+
+گاهی می‌خواهید پروکسی فعال باشد ولی بعضی عملیات‌ها مستقیم (بدون پروکسی) اجرا شوند.
+
+> 💡 **مثال کاربردی:**
+>
+> فرض کن از پروکسی خارج از ایران استفاده می‌کنی. ولی سرور روبیکا برای
+> گرفتن URL جدید (`getdcmess.iranlms.ir`) فقط از داخل ایران جواب می‌دهد.
+> پس این عملیات باید بدون پروکسی باشد.
+
+### عملیات‌های قابل استثنا
+
+| ثابت | عملیات | توضیح |
+|------|--------|-------|
+| `ProxyOpRefreshURL` | گرفتن URL جدید | درخواست به `getdcmess.iranlms.ir` |
+| `ProxyOpGetDCs` | گرفتن لیست سرورها | مشابه بالا |
+| `ProxyOpAPI` | درخواست‌های API | ارسال پیام، گرفتن اطلاعات و... |
+| `ProxyOpUpload` | آپلود فایل | عکس، ویدیو، فایل |
+| `ProxyOpDownload` | دانلود فایل | دانلود عکس، ویدیو، فایل |
+| `ProxyOpWebSocket` | اتصال WebSocket | دریافت پیام‌های جدید |
+
+### روش ۱ — هنگام ساخت کلاینت
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("socks5://proxy:1080"),
+    rubingo.WithProxyEnabled(true),
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,  // گرفتن URL بدون پروکسی
+        rubingo.ProxyOpGetDCs,      // گرفتن سرورها بدون پروکسی
+    ),
+)
+```
+
+### روش ۲ — در زمان اجرا
+
+```go
+// استثنا کردن
+client.ExcludeFromProxy(rubingo.ProxyOpUpload)
+client.ExcludeFromProxy(rubingo.ProxyOpDownload)
+
+// برگرداندن به حالت عادی (استفاده از پروکسی)
+client.IncludeInProxy(rubingo.ProxyOpUpload)
+
+// بررسی وضعیت
+if client.IsExcludedFromProxy(rubingo.ProxyOpDownload) {
+    fmt.Println("دانلود بدون پروکسی انجام می‌شود")
+}
+```
+
+### نحوه کار داخلی
+
+کتابخانه دو HTTP Client دارد:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│   httpClient   ──▶ با پروکسی (اگر فعال باشد)           │
+│   directClient ──▶ همیشه بدون پروکسی                   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+وقتی عملیاتی استثنا شده باشد، از `directClient` استفاده می‌شود. در غیر این صورت از `httpClient`.
+
+```
+درخواست جدید
+    │
+    ▼
+آیا این عملیات استثنا شده؟
+    │
+    ├── بله ──▶ directClient (بدون پروکسی)
+    │
+    └── نه  ──▶ httpClient (با پروکسی اگر فعال باشد)
+```
+
+### مثال کامل
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    // پروکسی خارج از ایران
+    rubingo.WithProxy("socks5://germany-proxy:1080"),
+    rubingo.WithProxyEnabled(true),
+
+    // این‌ها باید از داخل ایران باشند
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,
+        rubingo.ProxyOpGetDCs,
+    ),
+)
+
+client.Connect()
+client.Start("")
+
+// API و WebSocket از پروکسی ✅
+// گرفتن URL مستقیم ✅
+
+// بعداً می‌خواهیم آپلود هم مستقیم باشد
+client.ExcludeFromProxy(rubingo.ProxyOpUpload)
+```
+
+---
+
+## 📋 فرمت آدرس پروکسی
+
+| نوع | فرمت |
+|-----|------|
+| HTTP با رمز | `http://user:pass@host:port` |
+| HTTP بدون رمز | `http://host:port` |
+| HTTPS | `https://user:pass@host:443` |
+| SOCKS5 | `socks5://user:pass@host:1080` |
+
+> ⚠️ **کاراکترهای خاص در رمز عبور:**
+> اگر رمز شامل `@`، `=`، `#` باشه، URL encode کن:
+> `p@ss=word` ← `p%40ss%3Dword`
+
+---
+
+## 📊 جدول متدها
+
+### تنظیم و کنترل پروکسی
+
+| متد | توضیح |
+|-----|-------|
+| `WithProxy(url)` | تنظیم آدرس هنگام ساخت |
+| `WithProxyEnabled(bool)` | وضعیت اولیه هنگام ساخت |
+| `SetProxy(url)` | تغییر آدرس در زمان اجرا |
+| `EnableProxy()` | فعال کردن |
+| `DisableProxy()` | غیرفعال کردن |
+| `IsProxyEnabled()` | وضعیت فعلی (`bool`) |
+
+### استثنا کردن عملیات‌ها
+
+| متد | توضیح |
+|-----|-------|
+| `WithProxyExclude(ops...)` | استثنا کردن هنگام ساخت |
+| `ExcludeFromProxy(ops...)` | استثنا کردن در زمان اجرا |
+| `IncludeInProxy(ops...)` | برگرداندن به حالت عادی |
+| `IsExcludedFromProxy(op)` | بررسی وضعیت استثنا (`bool`) |
+
+> 📌 **پیش‌فرض:** پروکسی غیرفعال است و هیچ عملیاتی استثنا نشده.
+
+---
+
+## ❓ سوالات متداول
+
+**آیا باید قبل از هر درخواست `EnableProxy` بزنم؟**
+
+نه! یک بار کافی است. پروکسی فعال می‌ماند تا `DisableProxy()` صدا شود.
+
+---
+
+**وقتی `DisableProxy` می‌زنم، آدرس پاک می‌شود؟**
+
+نه! فقط غیرفعال می‌شود. آدرس ذخیره می‌ماند و با `EnableProxy()` دوباره فعال می‌شود.
+
+---
+
+**آیا SOCKS5 پشتیبانی می‌شود؟**
+
+بله! فقط آدرس را با `socks5://` شروع کن:
+
+```go
+rubingo.WithProxy("socks5://user:pass@host:1080")
+```
+
+---
+
+**فرق `ExcludeFromProxy` و `DisableProxy` چیست؟**
+
+| متد | تأثیر |
+|-----|-------|
+| `DisableProxy()` | همه عملیات‌ها بدون پروکسی |
+| `ExcludeFromProxy(op)` | فقط آن عملیات بدون پروکسی |
+
+---
+
+**اگر پروکسی غیرفعال باشد، استثنا کردن تأثیری دارد؟**
+
+نه! وقتی پروکسی غیرفعال است، همه عملیات‌ها مستقیم هستند. استثنا کردن فقط وقتی پروکسی فعال است معنی دارد.
+
+---
+
+**آیا می‌توانم چند عملیات را همزمان استثنا کنم؟**
+
+بله!
+
+```go
+// هنگام ساخت
+rubingo.WithProxyExclude(
+    rubingo.ProxyOpRefreshURL,
+    rubingo.ProxyOpGetDCs,
+    rubingo.ProxyOpUpload,
+)
+
+// در زمان اجرا
+client.ExcludeFromProxy(
+    rubingo.ProxyOpDownload,
+    rubingo.ProxyOpWebSocket,
+)
+```
+
+---
+
+**آیا استثنا کردن thread-safe است؟**
+
+بله! می‌توانید در هر لحظه از هر goroutine عملیاتی را استثنا یا شامل کنید.
+
+---
+
+## 💡 نکات پیشرفته
+
+### سناریو ۱: پروکسی خارجی + API داخلی
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("socks5://germany:1080"),
+    rubingo.WithProxyEnabled(true),
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,  // getdcmess.iranlms.ir باید داخلی باشد
+        rubingo.ProxyOpGetDCs,
+    ),
+)
+```
+
+### سناریو ۲: آپلود/دانلود سریع‌تر بدون پروکسی
+
+```go
+client.ExcludeFromProxy(rubingo.ProxyOpUpload)
+client.ExcludeFromProxy(rubingo.ProxyOpDownload)
+// بقیه عملیات‌ها از پروکسی، ولی فایل‌ها مستقیم
+```
+
+### سناریو ۳: فقط WebSocket از پروکسی
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("socks5://proxy:1080"),
+    rubingo.WithProxyEnabled(true),
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,
+        rubingo.ProxyOpGetDCs,
+        rubingo.ProxyOpAPI,
+        rubingo.ProxyOpUpload,
+        rubingo.ProxyOpDownload,
+        // فقط WebSocket استثنا نشده
+    ),
+)
+```

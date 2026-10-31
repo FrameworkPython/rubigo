@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if page.title %}{{ page.title }} — {% endif %}{{ site.title }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --bg2: #111827;
+      --bg3: #1a2235;
+      --border: #1e2d45;
+      --accent: #00d4ff;
+      --accent2: #0090ff;
+      --accent3: #7c3aed;
+      --text: #e2e8f0;
+      --text-muted: #8899aa;
+      --green: #10b981;
+      --sidebar-w: 260px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Vazirmatn', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+    }
+
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem 1.2rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo a {
+      font-size: 1.3rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+
+    .sidebar-logo p { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; }
+
+    .sidebar-nav { padding: 1rem 0; flex: 1; }
+
+    .nav-group { margin-bottom: 0.5rem; }
+
+    .nav-group-title {
+      padding: 0.5rem 1.2rem 0.3rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 1.2rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+      border-right: 2px solid transparent;
+    }
+
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+
+    .nav-link.active {
+      color: var(--accent);
+      border-right-color: var(--accent);
+      background: rgba(0,212,255,0.05);
+    }
+
+    .nav-link .icon { width: 20px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 1rem 1.2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .gh-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .gh-btn:hover { border-color: var(--accent); }
+
+    /* ─── Main ─── */
+    .main {
+      margin-right: var(--sidebar-w);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(11,15,26,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2.5rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .breadcrumb a { color: var(--text-muted); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--accent); }
+    .breadcrumb-sep { opacity: 0.35; }
+    .breadcrumb-current { color: var(--text); }
+
+    .menu-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.4rem 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* ─── Content ─── */
+    .content {
+      padding: 3rem 3.5rem;
+      max-width: 860px;
+    }
+
+    /* ─── Markdown Styles ─── */
+    .content h1 {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.2;
+    }
+
+    .content h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin: 2.5rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 1.8rem 0 0.8rem;
+      color: var(--accent);
+    }
+
+    .content h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 1.2rem 0 0.5rem;
+    }
+
+    .content p { margin-bottom: 1rem; }
+
+    .content a { color: var(--accent2); text-decoration: none; }
+    .content a:hover { text-decoration: underline; }
+
+    .content code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8em;
+      background: rgba(0,212,255,0.08);
+      color: var(--accent);
+      padding: 0.15em 0.45em;
+      border-radius: 4px;
+      border: 1px solid rgba(0,212,255,0.15);
+    }
+
+    .content pre {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem 1.4rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      direction: ltr;
+      text-align: left;
+    }
+
+    .content pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.9;
+    }
+
+    /* Rouge syntax highlighting */
+    .highlight .k, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kt { color: #c084fc; }
+    .highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .sc { color: #a3e635; }
+    .highlight .n, .highlight .na, .highlight .nb { color: #e2e8f0; }
+    .highlight .nf, .highlight .nc { color: #00d4ff; }
+    .highlight .o { color: #94a3b8; }
+    .highlight .c, .highlight .c1, .highlight .cm, .highlight .cs { color: #4a5568; font-style: italic; }
+    .highlight .mi, .highlight .mf { color: #f472b6; }
+    .highlight .bp { color: #fb923c; }
+    .highlight { background: #090d16 !important; }
+
+    .content blockquote {
+      border-right: 3px solid var(--accent3);
+      background: rgba(124,58,237,0.07);
+      padding: 1rem 1.2rem;
+      margin: 1rem 0 1.5rem;
+      border-radius: 0 8px 8px 0;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    .content blockquote strong { color: var(--text); }
+    .content blockquote p { margin: 0; }
+
+    .content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.875rem;
+    }
+
+    .content th {
+      background: var(--bg3);
+      padding: 0.7rem 1rem;
+      text-align: right;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      color: var(--accent);
+    }
+
+    .content td {
+      padding: 0.65rem 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .content tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .content ul, .content ol {
+      padding-right: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .content li { margin-bottom: 0.4rem; }
+
+    .content hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    .content img { max-width: 100%; border-radius: 8px; }
+
+    /* page header separator */
+    .content h1 + p { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border); }
+
+    /* ─── Mobile ─── */
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-right: 0; }
+      .content { padding: 2rem 1.5rem; }
+      .content h1 { font-size: 1.7rem; }
+      .menu-btn { display: block; }
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <a href="{{ site.baseurl }}/">{{ site.title }} 🚀</a>
+      <p>{{ site.description }}</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% for group in site.nav %}
+      <div class="nav-group">
+        <div class="nav-group-title">{{ group.title }}</div>
+        {% for item in group.items %}
+        <a href="{{ site.baseurl }}{{ item.url }}"
+           class="nav-link {% if page.url == item.url %}active{% endif %}">
+          <span class="icon">{{ item.icon }}</span>
+          {{ item.label }}
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="https://github.com/farshadnobody/Rubingo" class="gh-btn" target="_blank">
+        ⭐ GitHub
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="{{ site.baseurl }}/">{{ site.title }}</a>
+        {% if page.title %}
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">{{ page.title }}</span>
+        {% endif %}
+      </div>
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    </div>
+
+    <div class="content">
+      {{ content }}
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,918 @@
+---
+layout: default
+title: پروکسی با توضیحات کاملتر
+permalink: /docs/proxyfullexplained/
+---
+
+# 🔒 Rubingo Proxy Guide | راهنمای پروکسی روبینگو
+
+> کتابخانه Go برای ارتباط با روبیکا از طریق پروکسی
+
+[![Go Version](https://img.shields.io/badge/Go-1.18+-blue.svg)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+---
+
+## 📖 فهرست مطالب
+
+- [پروکسی چیست؟](#-پروکسی-چیست)
+- [نصب و آماده‌سازی](#-نصب-و-آماده‌سازی)
+- [روش‌های تنظیم پروکسی](#-روش‌های-تنظیم-پروکسی)
+- [فعال و غیرفعال کردن](#-فعال-و-غیرفعال-کردن)
+- [تغییر پروکسی در زمان اجرا](#-تغییر-پروکسی-در-زمان-اجرا)
+- [مثال‌های کاربردی](#-مثال‌های-کاربردی)
+- [فرمت آدرس پروکسی](#-فرمت-آدرس-پروکسی)
+- [جدول متدها](#-جدول-متدها)
+- [سوالات متداول](#-سوالات-متداول)
+- [عیب‌یابی](#-عیب‌یابی)
+
+---
+
+## 🤔 پروکسی چیست؟
+
+> **💡 توضیح ساده:**
+>
+> پروکسی مثل یک **واسطه** بین شما و اینترنت است.
+> وقتی پروکسی فعال باشد، درخواست‌های شما ابتدا به سرور پروکسی می‌روند
+> و سپس از آنجا به روبیکا ارسال می‌شوند.
+>
+> **چرا استفاده کنیم؟**
+> - دور زدن محدودیت‌های شبکه
+> - افزایش امنیت و حریم خصوصی
+> - تغییر IP برای جلوگیری از بلاک شدن
+
+### بدون پروکسی:
+```
+شما ──────────────────────────► روبیکا
+```
+
+### با پروکسی:
+```
+شما ────► سرور پروکسی ────► روبیکا
+```
+
+---
+
+## 📦 نصب و آماده‌سازی
+
+> **💡 توضیح ساده:**
+>
+> قبل از استفاده از پروکسی، باید آدرس پروکسی را داشته باشید.
+> این آدرس معمولاً از سرویس‌دهنده پروکسی به شما داده می‌شود.
+
+```bash
+go get github.com/yourname/rubingo
+```
+
+### آدرس پروکسی شما چیزی شبیه این است:
+
+```
+http://username:password@host:port
+```
+
+**مثال واقعی:**
+```
+http://spzl3fr6ok:zvnucb12yw9ZB=u3AW@gate.decodo.com:10001
+```
+
+| بخش | مقدار | توضیح |
+|-----|-------|-------|
+| `http://` | پروتکل | نوع اتصال |
+| `spzl3fr6ok` | username | نام کاربری پروکسی |
+| `zvnucb12yw9ZB=u3AW` | password | رمز عبور پروکسی |
+| `gate.decodo.com` | host | آدرس سرور پروکسی |
+| `10001` | port | پورت سرور پروکسی |
+
+---
+
+## 🔧 روش‌های تنظیم پروکسی
+
+### روش ۱: تنظیم هنگام ساخت کلاینت (پیشنهادی ✅)
+
+> **💡 توضیح ساده:**
+>
+> وقتی کلاینت (ربات) را می‌سازید، آدرس پروکسی را هم بدهید.
+> **توجه:** فقط دادن آدرس کافی نیست! باید آن را فعال هم کنید.
+
+```go
+package main
+
+import (
+    "log"
+    "github.com/yourname/rubingo"
+)
+
+func main() {
+    myProxy := "http://spzl3fr6ok:zvnucb12yw9ZB=u3AW@gate.decodo.com:10001"
+
+    client, err := rubingo.NewClient("my_bot",
+        rubingo.WithProxy(myProxy),         // ← آدرس پروکسی
+        rubingo.WithProxyEnabled(true),      // ← فعال کردن پروکسی
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // از اینجا به بعد همه درخواست‌ها از پروکسی رد می‌شوند
+    client.Connect()
+}
+```
+
+> **⚠️ نکته مهم:**
+>
+> اگر فقط `WithProxy(myProxy)` بنویسید ولی `WithProxyEnabled(true)` ننویسید،
+> پروکسی **غیرفعال** خواهد بود! هر دو لازم است.
+
+---
+
+### روش ۲: تنظیم بدون فعال‌سازی (فعال کردن بعداً)
+
+> **💡 توضیح ساده:**
+>
+> آدرس پروکسی را ذخیره کنید ولی هنوز فعال نکنید.
+> بعداً در هر جای کد که خواستید فعالش کنید.
+
+```go
+// فقط آدرس را تنظیم کن (هنوز غیرفعال است)
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("http://user:pass@host:port"),
+    // WithProxyEnabled نداریم → پس غیرفعال است
+)
+
+client.Connect()
+
+// ... کدهای دیگر (بدون پروکسی کار می‌کنند) ...
+
+// حالا فعالش کن!
+client.EnableProxy()
+
+// از اینجا به بعد با پروکسی است
+```
+
+---
+
+### روش ۳: تنظیم بعد از ساخت کلاینت
+
+> **💡 توضیح ساده:**
+>
+> اگر هنگام ساخت کلاینت آدرس پروکسی را نداشتید،
+> می‌توانید بعداً آن را تنظیم کنید.
+
+```go
+client, _ := rubingo.NewClient("my_bot")
+client.Connect()
+
+// بعداً آدرس پروکسی را تنظیم و فعال کن
+client.SetProxy("http://user:pass@host:port")
+client.EnableProxy()
+```
+
+---
+
+## ⚡ فعال و غیرفعال کردن
+
+> **💡 توضیح ساده:**
+>
+> مثل یک **کلید برق** عمل می‌کند:
+> - `EnableProxy()` = روشن کردن 🟢
+> - `DisableProxy()` = خاموش کردن 🔴
+> - `IsProxyEnabled()` = چک کردن روشن یا خاموش بودن ❓
+
+```go
+// فعال کردن
+client.EnableProxy()
+
+// غیرفعال کردن
+client.DisableProxy()
+
+// بررسی وضعیت
+if client.IsProxyEnabled() {
+    fmt.Println("پروکسی فعال است ✅")
+} else {
+    fmt.Println("پروکسی غیرفعال است ❌")
+}
+```
+
+> **💡 نکته:**
+>
+> وقتی پروکسی را فعال می‌کنید، **فعال می‌ماند** تا زمانی که غیرفعالش کنید.
+> نیازی نیست قبل از هر درخواست دوباره `EnableProxy()` بزنید.
+> اما اگر هر بار هم بزنید، **هیچ مشکلی ایجاد نمی‌شود**.
+
+---
+
+## 🔄 تغییر پروکسی در زمان اجرا
+
+> **💡 توضیح ساده:**
+>
+> در حین اجرای برنامه می‌توانید آدرس پروکسی را عوض کنید یا آن را خاموش و روشن کنید.
+> نیازی به ریستارت برنامه نیست!
+
+```go
+// شروع با پروکسی اول
+client.SetProxy("http://user1:pass1@proxy1.com:8080")
+client.EnableProxy()
+
+// ارسال شماره (با پروکسی ۱)
+result, _ := client.SendCodeExt("989123456789", "")
+
+// تغییر به پروکسی دوم
+client.SetProxy("http://user2:pass2@proxy2.com:9090")
+// نیازی به EnableProxy نیست چون قبلاً فعال شده
+
+// ارسال کد تایید (با پروکسی ۲)
+signIn, _ := client.SignInExt(code, phone, hash, tmpSession)
+
+// غیرفعال کردن پروکسی
+client.DisableProxy()
+
+// ارسال پیام (بدون پروکسی)
+client.SendMessage(...)
+
+// دوباره فعال کردن
+client.EnableProxy()
+```
+
+> **💡 نکته:** تغییر پروکسی **thread-safe** است. حتی اگر همان لحظه درخواست‌هایی در حال ارسال باشند، مشکلی پیش نمی‌آید.
+
+---
+
+## 📚 مثال‌های کاربردی
+
+### مثال ۱: لاگین کامل با پروکسی همیشه فعال
+
+```go
+package main
+
+import (
+    "bufio"
+    "fmt"
+    "log"
+    "os"
+    "strings"
+
+    "github.com/yourname/rubingo"
+)
+
+func main() {
+    client, err := rubingo.NewClient("my_bot",
+        rubingo.WithProxy("http://spzl3fr6ok:zvnucb12yw9ZB=u3AW@gate.decodo.com:10001"),
+        rubingo.WithProxyEnabled(true),
+        rubingo.WithSessionCallback(func(data rubingo.SessionData) {
+            fmt.Printf("✅ Session saved: %s\n", data.GUID)
+        }),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if err := client.Connect(); err != nil {
+        log.Fatal(err)
+    }
+
+    reader := bufio.NewReader(os.Stdin)
+
+    // مرحله ۱: ارسال شماره (با پروکسی ✅)
+    fmt.Print("📱 Phone number: ")
+    phone, _ := reader.ReadString('\n')
+    phone = strings.TrimSpace(phone)
+
+    result, err := client.SendCodeExt(phone, "")
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("✅ Code sent!")
+
+    // مرحله ۲: ارسال کد تایید (با پروکسی ✅)
+    fmt.Print("🔑 Code: ")
+    code, _ := reader.ReadString('\n')
+    code = strings.TrimSpace(code)
+
+    signIn, err := client.SignInExt(code, phone, result.PhoneCodeHash, result.TmpSession)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    client.ApplySignInResult(signIn)
+    fmt.Printf("✅ Logged in! GUID: %s\n", signIn.UserGUID)
+
+    // مرحله ۳: اجرای ربات (با پروکسی ✅)
+    client.OnMessage(func(u *rubingo.Update) {
+        fmt.Printf("📩 %s: %s\n", u.AuthorGUID(), u.Text())
+        u.Reply("سلام! پیام شما دریافت شد")
+    })
+
+    fmt.Println("🤖 Bot is running with proxy...")
+    client.Run()
+}
+```
+
+---
+
+### مثال ۲: لاگین با کنترل پروکسی در هر مرحله
+
+```go
+func main() {
+    client, err := rubingo.NewClient("my_bot",
+        rubingo.WithProxy("http://user:pass@host:port"),
+        // پروکسی غیرفعال (پیش‌فرض)
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    client.Connect()
+    reader := bufio.NewReader(os.Stdin)
+
+    // مرحله ۱: ارسال شماره → پروکسی فعال
+    client.EnableProxy()
+    fmt.Printf("🔒 Proxy: %v\n", client.IsProxyEnabled()) // true
+
+    fmt.Print("Phone: ")
+    phone, _ := reader.ReadString('\n')
+    phone = strings.TrimSpace(phone)
+
+    result, err := client.SendCodeExt(phone, "")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // مرحله ۲: ارسال کد تایید → پروکسی غیرفعال
+    client.DisableProxy()
+    fmt.Printf("🔓 Proxy: %v\n", client.IsProxyEnabled()) // false
+
+    fmt.Print("Code: ")
+    code, _ := reader.ReadString('\n')
+    code = strings.TrimSpace(code)
+
+    signIn, err := client.SignInExt(code, phone, result.PhoneCodeHash, result.TmpSession)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    client.ApplySignInResult(signIn)
+
+    // مرحله ۳: اجرای ربات → پروکسی دوباره فعال
+    client.EnableProxy()
+    fmt.Printf("🔒 Proxy: %v\n", client.IsProxyEnabled()) // true
+
+    client.OnMessage(func(u *rubingo.Update) {
+        u.Reply("سلام!")
+    })
+
+    client.Run()
+}
+```
+
+---
+
+### مثال ۳: تغییر پروکسی بین درخواست‌ها
+
+```go
+func main() {
+    proxies := []string{
+        "http://user1:pass1@proxy1.com:8080",
+        "http://user2:pass2@proxy2.com:9090",
+        "http://user3:pass3@proxy3.com:7070",
+    }
+
+    client, err := rubingo.NewClient("my_bot",
+        rubingo.WithProxy(proxies[0]),
+        rubingo.WithProxyEnabled(true),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    client.Connect()
+
+    fmt.Println("Using proxy 1")
+    client.SendCodeExt("989123456789", "")
+
+    client.SetProxy(proxies[1])
+    fmt.Println("Switched to proxy 2")
+
+    client.SetProxy(proxies[2])
+    fmt.Println("Switched to proxy 3")
+
+    client.DisableProxy()
+    fmt.Println("Direct connection (no proxy)")
+}
+```
+
+---
+
+### مثال ۴: لاگین با 2FA و پروکسی
+
+```go
+func main() {
+    client, err := rubingo.NewClient("my_bot",
+        rubingo.WithProxy("http://user:pass@host:port"),
+        rubingo.WithProxyEnabled(true),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    client.Connect()
+    reader := bufio.NewReader(os.Stdin)
+
+    fmt.Print("📱 Phone: ")
+    phone, _ := reader.ReadString('\n')
+    phone = strings.TrimSpace(phone)
+
+    result, err := client.SendCodeExt(phone, "")
+
+    // اگر 2FA فعال بود
+    if err != nil && errors.Is(err, rubingo.ErrSendPassKey) {
+        fmt.Printf("🔐 2FA required! Hint: %s\n", result.AuthStatus.HintPassKey)
+
+        for {
+            fmt.Print("Enter 2FA password: ")
+            passKey, _ := reader.ReadString('\n')
+            passKey = strings.TrimSpace(passKey)
+
+            result, err = client.SendCodeExt(phone, passKey)
+            if err == nil {
+                break
+            }
+            if errors.Is(err, rubingo.ErrInvalidPassKey) {
+                fmt.Println("❌ Wrong password, try again")
+                continue
+            }
+            log.Fatal(err)
+        }
+    } else if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("✅ Code sent!")
+
+    fmt.Print("🔑 Code: ")
+    code, _ := reader.ReadString('\n')
+    code = strings.TrimSpace(code)
+
+    signIn, err := client.SignInExt(code, phone, result.PhoneCodeHash, result.TmpSession)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    client.ApplySignInResult(signIn)
+    fmt.Printf("✅ Welcome %s %s!\n", signIn.FirstName, signIn.LastName)
+}
+```
+
+---
+
+### مثال ۵: بدون پروکسی (حالت پیش‌فرض)
+
+```go
+// بدون هیچ تنظیم پروکسی - اتصال مستقیم
+client, _ := rubingo.NewClient("my_bot")
+client.Connect()
+// همه چیز مستقیم و بدون پروکسی کار می‌کند
+```
+
+---
+
+## 🚫 استثنا کردن عملیات‌ها
+
+> **💡 توضیح ساده:**
+>
+> گاهی می‌خواهید پروکسی فعال باشد ولی بعضی عملیات‌ها مستقیم (بدون پروکسی) اجرا شوند.
+>
+> **مثال کاربردی:**
+> فرض کن از پروکسی خارج از ایران استفاده می‌کنی. ولی سرور روبیکا برای
+> گرفتن URL جدید (`getdcmess.iranlms.ir`) فقط از داخل ایران جواب می‌دهد.
+> پس این عملیات باید بدون پروکسی باشد.
+
+### عملیات‌های قابل استثنا
+
+| ثابت | عملیات | توضیح |
+|------|--------|-------|
+| `ProxyOpRefreshURL` | گرفتن URL جدید | درخواست به `getdcmess.iranlms.ir` |
+| `ProxyOpGetDCs` | گرفتن لیست سرورها | مشابه بالا |
+| `ProxyOpAPI` | درخواست‌های API | ارسال پیام، گرفتن اطلاعات و... |
+| `ProxyOpUpload` | آپلود فایل | عکس، ویدیو، فایل |
+| `ProxyOpDownload` | دانلود فایل | دانلود عکس، ویدیو، فایل |
+| `ProxyOpWebSocket` | اتصال WebSocket | دریافت پیام‌های جدید |
+
+### روش ۱: استثنا هنگام ساخت کلاینت
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("socks5://proxy:1080"),
+    rubingo.WithProxyEnabled(true),
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,  // گرفتن URL بدون پروکسی
+        rubingo.ProxyOpGetDCs,      // گرفتن سرورها بدون پروکسی
+    ),
+)
+```
+
+### روش ۲: استثنا در زمان اجرا
+
+```go
+// استثنا کردن
+client.ExcludeFromProxy(rubingo.ProxyOpUpload)
+client.ExcludeFromProxy(rubingo.ProxyOpDownload)
+
+// برگرداندن به حالت عادی (استفاده از پروکسی)
+client.IncludeInProxy(rubingo.ProxyOpUpload)
+
+// بررسی وضعیت
+if client.IsExcludedFromProxy(rubingo.ProxyOpDownload) {
+    fmt.Println("دانلود بدون پروکسی انجام می‌شود")
+}
+```
+
+### نحوه کار داخلی
+
+کتابخانه دو HTTP Client دارد:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│   httpClient   ──▶ با پروکسی (اگر فعال باشد)           │
+│   directClient ──▶ همیشه بدون پروکسی                   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+وقتی عملیاتی استثنا شده باشد، از `directClient` استفاده می‌شود:
+
+```
+درخواست جدید
+    │
+    ▼
+آیا این عملیات استثنا شده؟
+    │
+    ├── بله ──▶ directClient (بدون پروکسی)
+    │
+    └── نه  ──▶ httpClient (با پروکسی اگر فعال باشد)
+```
+
+### جدول متدهای استثنا
+
+| متد | توضیح |
+|-----|-------|
+| `WithProxyExclude(ops...)` | استثنا کردن هنگام ساخت |
+| `ExcludeFromProxy(ops...)` | استثنا کردن در زمان اجرا |
+| `IncludeInProxy(ops...)` | برگرداندن به حالت عادی |
+| `IsExcludedFromProxy(op)` | بررسی وضعیت استثنا (`bool`) |
+
+> **💡 نکته:** استثنا کردن **thread-safe** است. می‌توانید در هر لحظه از هر goroutine عملیاتی را استثنا یا شامل کنید.
+
+> **⚠️ توجه:** وقتی پروکسی غیرفعال است، همه عملیات‌ها مستقیم هستند. استثنا کردن فقط وقتی پروکسی فعال است معنا دارد.
+
+---
+
+## 💡 نکات پیشرفته
+
+### سناریو ۱: پروکسی خارجی + URL داخلی
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("socks5://germany:1080"),
+    rubingo.WithProxyEnabled(true),
+    // getdcmess.iranlms.ir باید از داخل ایران باشد
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,
+        rubingo.ProxyOpGetDCs,
+    ),
+)
+```
+
+### سناریو ۲: آپلود/دانلود سریع‌تر بدون پروکسی
+
+```go
+client.ExcludeFromProxy(rubingo.ProxyOpUpload)
+client.ExcludeFromProxy(rubingo.ProxyOpDownload)
+// بقیه عملیات‌ها از پروکسی، ولی فایل‌ها مستقیم
+```
+
+### سناریو ۳: فقط WebSocket از پروکسی
+
+```go
+client, _ := rubingo.NewClient("my_bot",
+    rubingo.WithProxy("socks5://proxy:1080"),
+    rubingo.WithProxyEnabled(true),
+    rubingo.WithProxyExclude(
+        rubingo.ProxyOpRefreshURL,
+        rubingo.ProxyOpGetDCs,
+        rubingo.ProxyOpAPI,
+        rubingo.ProxyOpUpload,
+        rubingo.ProxyOpDownload,
+        // فقط WebSocket استثنا نشده → از پروکسی رد می‌شود
+    ),
+)
+```
+
+---
+
+## 📋 فرمت آدرس پروکسی
+
+### فرمت‌های پشتیبانی شده
+
+| نوع | فرمت | مثال |
+|-----|------|------|
+| HTTP با رمز | `http://user:pass@host:port` | `http://admin:1234@proxy.com:8080` |
+| HTTP بدون رمز | `http://host:port` | `http://proxy.com:8080` |
+| HTTPS با رمز | `https://user:pass@host:port` | `https://admin:1234@proxy.com:443` |
+| SOCKS5 با رمز | `socks5://user:pass@host:port` | `socks5://admin:1234@proxy.com:1080` |
+| SOCKS5 بدون رمز | `socks5://host:port` | `socks5://proxy.com:1080` |
+
+### ⚠️ کاراکترهای خاص در رمز عبور
+
+اگر رمز عبور پروکسی شما شامل کاراکترهای خاص مثل `@`، `=`، `#` باشد:
+
+```go
+// ❌ اشتباه - اگر رمز شامل @ باشد
+proxy := "http://user:p@ss@host:port"
+
+// ✅ درست - از URL encoding استفاده کنید
+proxy := "http://user:p%40ss@host:port"
+```
+
+| کاراکتر | URL Encoded |
+|----------|-------------|
+| `@` | `%40` |
+| `#` | `%23` |
+| `=` | `%3D` |
+| `:` | `%3A` |
+| `/` | `%2F` |
+| `?` | `%3F` |
+| `&` | `%26` |
+| `+` | `%2B` |
+| ` ` (فاصله) | `%20` |
+
+---
+
+## 📊 جدول متدها
+
+### 🔧 تنظیمات (Options) — هنگام ساخت کلاینت
+
+| متد | توضیح | مثال |
+|-----|-------|------|
+| `WithProxy(url)` | تنظیم آدرس پروکسی | `WithProxy("http://user:pass@host:port")` |
+| `WithProxyEnabled(bool)` | فعال/غیرفعال هنگام ساخت | `WithProxyEnabled(true)` |
+
+### ⚡ متدها — در زمان اجرا
+
+#### تنظیم و کنترل پروکسی
+
+| متد | توضیح | برگشتی |
+|-----|-------|--------|
+| `client.SetProxy(url)` | تغییر آدرس پروکسی | — |
+| `client.EnableProxy()` | فعال کردن پروکسی | — |
+| `client.DisableProxy()` | غیرفعال کردن پروکسی | — |
+| `client.IsProxyEnabled()` | آیا پروکسی فعال است؟ | `bool` |
+
+#### استثنا کردن عملیات‌ها
+
+| متد | توضیح | برگشتی |
+|-----|-------|--------|
+| `client.ExcludeFromProxy(ops...)` | استثنا کردن عملیات | — |
+| `client.IncludeInProxy(ops...)` | برگرداندن به حالت عادی | — |
+| `client.IsExcludedFromProxy(op)` | آیا عملیات استثنا شده؟ | `bool` |
+
+### 📌 رفتار پیش‌فرض
+
+| حالت | توضیح |
+|------|-------|
+| پیش‌فرض | پروکسی **غیرفعال** است |
+| بعد از `EnableProxy()` | پروکسی **فعال می‌ماند** تا `DisableProxy()` صدا شود |
+| بعد از `DisableProxy()` | پروکسی **غیرفعال می‌ماند** تا `EnableProxy()` صدا شود |
+| `SetProxy()` | فقط آدرس را عوض می‌کند، وضعیت تغییر نمی‌کند |
+
+---
+
+## 🌍 پروکسی روی چه بخش‌هایی اعمال می‌شود؟
+
+وقتی پروکسی فعال باشد، **تمام** ارتباطات از پروکسی رد می‌شوند:
+
+| متد | توضیح | با پروکسی؟ |
+|-----|-------|------------|
+| `SendCodeExt()` | ارسال شماره تلفن | ✅ |
+| `SignInExt()` | ارسال کد تایید | ✅ |
+| `SendCode()` + 2FA | ارسال رمز دو مرحله‌ای | ✅ |
+| `GetDCs()` | دریافت URL سرورهای روبیکا | ✅ |
+| `SendMessage()` | ارسال پیام | ✅ |
+| `DownloadFile()` | دانلود فایل | ✅ |
+| `Upload()` | آپلود فایل | ✅ |
+| `Run()` | اتصال WebSocket | ✅ |
+| تمام API calls | هر درخواست به روبیکا | ✅ |
+
+---
+
+## ❓ سوالات متداول
+
+**۱. آیا باید قبل از هر درخواست `EnableProxy()` بزنم؟**
+
+نه! یک بار کافی است. اما اگر هر بار هم بزنید مشکلی ایجاد نمی‌شود.
+
+```go
+client.EnableProxy()      // ← فقط یک بار
+
+client.SendCodeExt(...)   // با پروکسی ✅
+client.SignInExt(...)     // با پروکسی ✅
+client.SendMessage(...)   // با پروکسی ✅
+```
+
+---
+
+**۲. اگر آدرس پروکسی اشتباه باشد چه می‌شود؟**
+
+درخواست‌ها خطا می‌دهند و یک پیام هشدار در لاگ چاپ می‌شود:
+
+```
+[rubingo] Warning: invalid proxy URL: ...
+```
+
+---
+
+**۳. آیا می‌توانم بدون پروکسی شروع کنم و بعداً فعال کنم؟**
+
+بله:
+
+```go
+client, _ := rubingo.NewClient("my_bot")
+client.Connect()
+
+// بعداً ...
+client.SetProxy("http://user:pass@host:port")
+client.EnableProxy()
+```
+
+---
+
+**۴. آیا `SetProxy()` پروکسی را فعال هم می‌کند؟**
+
+نه! فقط آدرس را تغییر می‌دهد. باید جداگانه فعال کنید:
+
+```go
+// ❌ فقط آدرس عوض شد، ولی هنوز غیرفعال است
+client.SetProxy("http://user:pass@host:port")
+
+// ✅ حالا فعال کنید
+client.EnableProxy()
+```
+
+---
+
+**۵. آیا پروکسی SOCKS5 پشتیبانی می‌شود؟**
+
+بله! فقط آدرس را با `socks5://` شروع کنید:
+
+```go
+rubingo.WithProxy("socks5://user:pass@host:1080")
+```
+
+---
+
+**۶. وقتی `DisableProxy()` می‌زنم، آدرس پروکسی پاک می‌شود؟**
+
+نه! فقط غیرفعال می‌شود. آدرس ذخیره می‌ماند:
+
+```go
+client.SetProxy("http://user:pass@host:port")
+client.EnableProxy()   // فعال ✅
+
+client.DisableProxy()  // غیرفعال ❌ (آدرس هنوز هست)
+
+client.EnableProxy()   // دوباره فعال ✅ (با همان آدرس قبلی)
+```
+
+---
+
+**۷. فرق `ExcludeFromProxy` و `DisableProxy` چیست؟**
+
+| متد | تأثیر |
+|-----|-------|
+| `DisableProxy()` | همه عملیات‌ها بدون پروکسی |
+| `ExcludeFromProxy(op)` | فقط آن عملیات بدون پروکسی، بقیه با پروکسی |
+
+---
+
+**۸. آیا می‌توانم چند عملیات را همزمان استثنا کنم؟**
+
+بله!
+
+```go
+// هنگام ساخت
+rubingo.WithProxyExclude(
+    rubingo.ProxyOpRefreshURL,
+    rubingo.ProxyOpGetDCs,
+    rubingo.ProxyOpUpload,
+)
+
+// در زمان اجرا
+client.ExcludeFromProxy(
+    rubingo.ProxyOpDownload,
+    rubingo.ProxyOpWebSocket,
+)
+```
+
+---
+
+## 🔧 عیب‌یابی
+
+### مشکل: `connection refused` یا `timeout`
+
+- آدرس پروکسی را بررسی کنید
+- مطمئن شوید سرور پروکسی در دسترس است
+- پورت را بررسی کنید
+
+```go
+client.EnableProxy()
+fmt.Println("Proxy enabled:", client.IsProxyEnabled())
+
+_, err := client.SendCodeExt("989123456789", "")
+if err != nil {
+    fmt.Println("❌ Error:", err)
+
+    // تلاش بدون پروکسی
+    client.DisableProxy()
+    _, err = client.SendCodeExt("989123456789", "")
+    if err != nil {
+        fmt.Println("❌ Without proxy also failed:", err)
+    } else {
+        fmt.Println("✅ Works without proxy")
+    }
+}
+```
+
+---
+
+### مشکل: `407 Proxy Authentication Required`
+
+نام کاربری یا رمز عبور پروکسی اشتباه است. مقادیر را بررسی کنید.
+
+---
+
+### مشکل: کاراکترهای خاص در رمز عبور
+
+از `net/url` برای encode خودکار استفاده کنید:
+
+```go
+import "net/url"
+
+proxyURL := &url.URL{
+    Scheme: "http",
+    User:   url.UserPassword("username", "p@ss=word#123"),
+    Host:   "proxy.com:8080",
+}
+
+client.SetProxy(proxyURL.String())
+// نتیجه: http://username:p%40ss%3Dword%23123@proxy.com:8080
+```
+
+---
+
+## 📐 دیاگرام عملکرد
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        شروع برنامه                          │
+│                                                             │
+│  client, _ := rubingo.NewClient("bot",                      │
+│      rubingo.WithProxy("http://..."),                       │
+│  )                                                          │
+│  client.Connect()                                           │
+│                                                             │
+│  ┌─────────────────────────┐    ┌─────────────────────────┐ │
+│  │   client.EnableProxy()  │    │  client.DisableProxy()  │ │
+│  │   پروکسی: فعال 🟢       │    │  پروکسی: غیرفعال 🔴     │ │
+│  │                         │    │                         │ │
+│  │  شما ──► پروکسی ──► رو  │    │  شما ──────────────► رو │ │
+│  │          بیکا           │    │         بیکا            │ │
+│  └─────────────────────────┘    └─────────────────────────┘ │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              client.IsProxyEnabled()                    │ │
+│  │              → true / false                             │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  client.SetProxy("http://new-proxy:port")               │ │
+│  │  → فقط آدرس عوض می‌شود                                  │ │
+│  │  → وضعیت فعال/غیرفعال تغییر نمی‌کند                     │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📌 خلاصه نهایی
+
+1. آدرس پروکسی بدهید: `WithProxy("http://...")` یا `SetProxy("http://...")`
+2. فعال کنید: `WithProxyEnabled(true)` یا `EnableProxy()`
+3. تمام! همه درخواست‌ها از پروکسی رد می‌شوند
+4. هر وقت خواستید غیرفعال کنید: `DisableProxy()`
+5. پیش‌فرض: **غیرفعال** 🔴
+
+---
+
+## 📄 License
+
+MIT License
